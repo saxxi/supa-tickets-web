@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AlertDialogHeader,
   AlertDialogFooter,
@@ -12,6 +14,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { UploadButton } from "@/utils/uploadthing";
 
 export default function Home() {
   return (
@@ -36,6 +39,21 @@ export default function Home() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <div>
+        <UploadButton
+          endpoint="imageUploader"
+          onClientUploadComplete={(res) => {
+            // Do something with the response
+            console.log("Files: ", res);
+            alert("Upload Completed");
+          }}
+          onUploadError={(error: Error) => {
+            // Do something with the error.
+            alert(`ERROR! ${error.message}`);
+          }}
+        />
+      </div>
     </main>
   );
 }
