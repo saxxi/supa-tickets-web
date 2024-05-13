@@ -11,6 +11,8 @@ export default clerkMiddleware((auth, req) => {
   if (!publicRouteMatcher(req)) {
     auth().protect();
   }
+}, {
+  signInUrl: '/agency/sign-in',
 });
 
 export const config = {
