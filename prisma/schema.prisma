@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  name         String
+  avatarUrl    String
+  email        String         @unique
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  role         Role           @default(SUBACCOUNT_USER)
+  agencyId     String?
+  Notification Notification[]
+  Permissions  Permissions[]
+  Agency       Agency?        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+}
+
+model Permissions {
+  id           String     @id @default(uuid())
+  email        String
+  subAccountId String
+  access       Boolean
+  User         User       @relation(fields: [email], references: [email], onDelete: Cascade)
+  SubAccount   SubAccount @relation(fields: [subAccountId], references: [id], onDelete: Cascade)
+
+  @@index([subAccountId])
+  @@index([email])
+}
+
+model Agency {
+  id               String         @id @default(uuid())
+  connectAccountId String?        @default("")
+  customerId       String         @default("")
+  name             String
+  agencyLogo       String
+  companyEmail     String
+  companyPhone     String
+  whiteLabel       Boolean        @default(true)
+  address          String
+  city             String
+  zipCode          String
+  state            String
+  country          String
+  goal             Int            @default(5)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  Invitation       Invitation[]
+  Notification     Notification[]
+  SubAccount       SubAccount[]
+  users            User[]
+}
+
+model SubAccount {
+  id               String         @id @default(uuid())
+  connectAccountId String?        @default("")
+  name             String
+  subAccountLogo   String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  companyEmail     String
+  companyPhone     String
+  goal             Int            @default(5)
+  address          String
+  city             String
+  zipCode          String
+  state            String
+  country          String
+  agencyId         String
+  Contact          Contact[]
+  Media            Media[]
+  Notification     Notification[]
+  Permissions      Permissions[]
+  Agency           Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+}
+
+model Contact {
+  id           String     @id @default(uuid())
+  name         String
+  email        String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  subAccountId String
+  Subaccount   SubAccount @relation(fields: [subAccountId], references: [id], onDelete: Cascade)
+
+  @@index([subAccountId])
+}
+
+model Media {
+  id           String     @id @default(uuid())
+  type         String?
+  name         String
+  link         String     @unique
+  subAccountId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  Subaccount   SubAccount @relation(fields: [subAccountId], references: [id], onDelete: Cascade)
+
+  @@index([subAccountId])
+}
+
+model Invitation {
+  id       String           @id @default(uuid())
+  email    String           @unique
+  agencyId String
+  status   InvitationStatus @default(PENDING)
+  role     Role             @default(SUBACCOUNT_USER)
+  Agency   Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+}
+
+model Notification {
+  id           String      @id @default(uuid())
+  notification String
+  agencyId     String
+  subAccountId String?
+  userId       String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  Agency       Agency      @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  SubAccount   SubAccount? @relation(fields: [subAccountId], references: [id], onDelete: Cascade)
+  User         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([subAccountId])
+  @@index([userId])
+}
+
+enum Role {
+  AGENCY_OWNER
+  AGENCY_ADMIN
+  SUBACCOUNT_USER
+  SUBACCOUNT_GUEST
+}
+
+enum InvitationStatus {
+  ACCEPTED
+  REVOKED
+  PENDING
+}
