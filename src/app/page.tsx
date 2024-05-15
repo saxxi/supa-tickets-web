@@ -14,7 +14,6 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { UploadButton } from "@/utils/uploadthing";
 import { Card, ProgressBar } from "@tremor/react";
 
 export default function Home() {
@@ -40,21 +39,6 @@ export default function Home() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <div>
-        <UploadButton
-          endpoint="imageUploader"
-          onClientUploadComplete={(res) => {
-            // Do something with the response
-            console.log("Files: ", res);
-            alert("Upload Completed");
-          }}
-          onUploadError={(error: Error) => {
-            // Do something with the error.
-            alert(`ERROR! ${error.message}`);
-          }}
-        />
-      </div>
 
       <div>
         <Card className="mx-auto max-w-md">
