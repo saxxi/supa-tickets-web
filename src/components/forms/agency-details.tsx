@@ -40,6 +40,9 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import FileUpload from "@/components/global/file-upload";
+import { deleteAgency, initUser, upsertAgency } from "@/lib/queries";
+import { useRouter } from "next/navigation";
+import { v4 } from "uuid";
 
 type Props = {
   data?: Partial<Agency>;
@@ -49,7 +52,6 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Please fill in this field" }),
   companyEmail: z.string().min(1, { message: "Please fill in this field" }),
   companyPhone: z.string().min(1, { message: "Please fill in this field" }),
-  whiteLabel: z.boolean(),
   address: z.string().min(1, { message: "Please fill in this field" }),
   city: z.string().min(1, { message: "Please fill in this field" }),
   zipCode: z.string().min(1, { message: "Please fill in this field" }),
@@ -59,12 +61,10 @@ const formSchema = z.object({
 });
 
 function PageWrap({
-  form,
   deletingAgency,
   handleDeleteAgency,
   children,
 }: {
-  form: ReturnType<typeof useForm>;
   deletingAgency: boolean;
   handleDeleteAgency: () => void;
   children: React.ReactNode;
@@ -73,16 +73,15 @@ function PageWrap({
     <AlertDialog>
       <Card>
         <CardHeader>
-          <CardTitle>Agency Information</CardTitle>
+          <CardTitle>Organization</CardTitle>
           <CardDescription>
-            Lets create an agency for you business. You can edit agency settings
-            later from the agency settings tab.
+            Edit the details of your organization.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {children}
 
-          <hr className="my-10" />
+          <hr className="my-5" />
 
           <DeleteAgency
             disabled={deletingAgency}
@@ -128,6 +127,7 @@ function DeleteAgency({
 
 export default function AgencyDetails({ data }: Props) {
   const { toast } = useToast();
+  const router = useRouter();
   const [deletingAgency, setDeletingAgency] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -135,7 +135,6 @@ export default function AgencyDetails({ data }: Props) {
       name: "",
       companyEmail: "",
       companyPhone: "",
-      whiteLabel: false,
       address: "",
       city: "",
       zipCode: "",
@@ -151,7 +150,6 @@ export default function AgencyDetails({ data }: Props) {
         name: "",
         companyEmail: "",
         companyPhone: "",
-        whiteLabel: false,
         address: "",
         city: "",
         zipCode: "",
@@ -164,26 +162,107 @@ export default function AgencyDetails({ data }: Props) {
   }, [data]);
 
   const handleDeleteAgency = async () => {
+    if (!data?.id) return;
     setDeletingAgency(true);
 
-    setTimeout(() => {
+    try {
+      await deleteAgency(data.id);
       toast({
         title: "Deleted Agency",
         description: "Deleted your agency and all subaccounts",
       });
-      window.location.reload();
-    }, 1000);
+      router.refresh();
+    } catch (error) {
+      console.log(error);
+      toast({
+        variant: "destructive",
+        title: "Ops!",
+        description: "could not delete your agency ",
+      });
+    }
+    setDeletingAgency(false);
   };
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("submitted", values);
-  }
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      let newUserData;
+      let custId;
+      if (!data?.id) {
+        const bodyData = {
+          email: values.companyEmail,
+          name: values.name,
+          shipping: {
+            address: {
+              city: values.city,
+              country: values.country,
+              line1: values.address,
+              postal_code: values.zipCode,
+              state: values.zipCode,
+            },
+            name: values.name,
+          },
+          address: {
+            city: values.city,
+            country: values.country,
+            line1: values.address,
+            postal_code: values.zipCode,
+            state: values.zipCode,
+          },
+        };
 
-  console.log("for", JSON.stringify(form.formState.errors));
+        const customerResponse = await fetch("/api/stripe/create-customer", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(bodyData),
+        });
+        const customerData: { customerId: string } =
+          await customerResponse.json();
+        custId = customerData.customerId;
+      }
+
+      newUserData = await initUser({ role: "AGENCY_OWNER" });
+      if (!data?.customerId && !custId) return;
+
+      const response = await upsertAgency({
+        id: data?.id ? data.id : v4(),
+        customerId: data?.customerId || custId || "",
+        address: values.address,
+        agencyLogo: values.agencyLogo,
+        city: values.city,
+        companyPhone: values.companyPhone,
+        country: values.country,
+        name: values.name,
+        state: values.state,
+        zipCode: values.zipCode,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        companyEmail: values.companyEmail,
+        connectAccountId: "",
+        goal: 5,
+      });
+      console.log("RESPONSE", response);
+
+      toast({
+        title: "Created Agency",
+      });
+      if (data?.id) return router.refresh();
+      if (response) {
+        return router.refresh();
+      }
+    } catch (error) {
+      console.log(error);
+      toast({
+        variant: "destructive",
+        title: "Oppse!",
+        description: "could not create your agency",
+      });
+    }
+  };
 
   return (
     <PageWrap
-      form={form}
       deletingAgency={deletingAgency}
       handleDeleteAgency={handleDeleteAgency}
     >
@@ -196,7 +275,7 @@ export default function AgencyDetails({ data }: Props) {
               name="agencyLogo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Agency Logo</FormLabel>
+                  <FormLabel>Logo</FormLabel>
                   <FormControl>
                     <FileUpload
                       apiEndpoint="agencyLogo"
@@ -252,32 +331,6 @@ export default function AgencyDetails({ data }: Props) {
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="whiteLabel"
-              render={({ field }) => {
-                return (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border gap-4 p-4">
-                    <div>
-                      <FormLabel>Whitelabel Agency</FormLabel>
-                      <FormDescription>
-                        Turning on whilelabel mode will show your agency logo to
-                        all sub accounts by default. You can overwrite this
-                        functionality through sub account settings.
-                      </FormDescription>
-                    </div>
-
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                );
-              }}
-            />
             <FormField
               control={form.control}
               name="address"

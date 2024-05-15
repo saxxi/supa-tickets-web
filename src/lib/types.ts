@@ -3,7 +3,9 @@ import {
   Role,
 } from '@prisma/client'
 import {
+  getAuthUserDetails,
   getMedia,
+  getUserPermissions,
 } from './queries'
 
 export type NotificationWithUser =
@@ -32,3 +34,6 @@ export type Address = {
   postal_code: string
   state: string
 }
+
+export type UserWithPermissionsAndSubAccounts = Prisma.PromiseReturnType<typeof getUserPermissions>
+export type AuthUserDetails = Prisma.PromiseReturnType<typeof getAuthUserDetails>

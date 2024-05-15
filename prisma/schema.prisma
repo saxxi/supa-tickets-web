@@ -40,7 +40,7 @@ model Agency {
   connectAccountId String?        @default("")
   customerId       String         @default("")
   name             String
-  agencyLogo       String
+  agencyLogo       String?
   companyEmail     String
   companyPhone     String
   whiteLabel       Boolean        @default(true)

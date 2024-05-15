@@ -5,22 +5,14 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import {
   Agency,
-  Lane,
-  Plan,
-  Prisma,
   Role,
   SubAccount,
-  Tag,
-  Ticket,
   User,
 } from '@prisma/client'
 import { v4 } from 'uuid'
 import {
-  CreateFunnelFormSchema,
   CreateMediaType,
 } from '@/lib/types'
-import { z } from 'zod'
-import { revalidatePath } from 'next/cache'
 
 export const getAuthUserDetails = async () => {
   const user = await currentUser()
@@ -33,6 +25,11 @@ export const getAuthUserDetails = async () => {
       email: user.emailAddresses[0].emailAddress,
     },
     include: {
+      Agency: {
+        include: {
+          SubAccount: {},
+        },
+      },
       Permissions: true,
     },
   })
@@ -225,7 +222,7 @@ export const initUser = async (newUser: Partial<User>) => {
   return userData
 }
 
-export const upsertAgency = async (agency: Agency, price?: Plan) => {
+export const upsertAgency = async (agency: Agency) => {
   if (!agency.companyEmail) return null
   try {
     const agencyDetails = await db.agency.upsert({
@@ -238,40 +235,6 @@ export const upsertAgency = async (agency: Agency, price?: Plan) => {
           connect: { email: agency.companyEmail },
         },
         ...agency,
-        SidebarOption: {
-          create: [
-            {
-              name: 'Dashboard',
-              icon: 'category',
-              link: `/agency/${agency.id}`,
-            },
-            {
-              name: 'Launchpad',
-              icon: 'clipboardIcon',
-              link: `/agency/${agency.id}/launchpad`,
-            },
-            {
-              name: 'Billing',
-              icon: 'payment',
-              link: `/agency/${agency.id}/billing`,
-            },
-            {
-              name: 'Settings',
-              icon: 'settings',
-              link: `/agency/${agency.id}/settings`,
-            },
-            {
-              name: 'Sub Accounts',
-              icon: 'person',
-              link: `/agency/${agency.id}/all-subaccounts`,
-            },
-            {
-              name: 'Team',
-              icon: 'shield',
-              link: `/agency/${agency.id}/team`,
-            },
-          ],
-        },
       },
     })
     return agencyDetails
